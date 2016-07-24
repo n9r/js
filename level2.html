@@ -1,0 +1,218 @@
+<!DOCTYPE html><html xml:lang="pl" dir="ltr" lang="pl">	<head><meta charset="UTF-8"><link rel="stylesheet" type="text/css" href="css/stylg.css"></head><body>
+<div id="points_table"><span id="bricksPoints">Brick Points: </span><br><span id="negativePoints">Negative Points: </span></div>
+<div id="operation_area">
+	<div id="pallet"></div>
+	<div id="ball"></div>
+	<div id="bottom_line"></div>
+</div>
+</body></html>
+<script>
+
+var areaWidth = 800;
+var areaHeight = 500;
+
+var ballSpeed = 12;
+var ballDirectionX = 1;
+var ballDirectionY = 1;
+
+var palletObject = document.getElementById("pallet");
+var ballObject = document.getElementById("ball");
+
+var bricksPoints = 0;
+var negativePoints = 0;
+
+var brickSizeX = 10;
+var brickSizeY = 5;
+
+var bricksArray = [];
+
+window.onload = function () {
+
+	ballObject.style.left = ( Math.floor((Math.random() * 600) ) + 200)+"px";
+	ballObject.style.top = ( Math.floor((Math.random() * 200) ) + 100)+"px";
+	window.onmousemove = mouseControl;
+	
+	//MOVE THE BALL
+	setInterval(ballMove, 20);
+	setInterval(insertRandomBrick, 1500);
+	
+	bricksFactory ();
+	document.getElementById("bottom_line").innerHTML = "...where strange things happen. Endlessly.";
+}
+
+function mouseControl (e) {
+
+	if (e.pageX > 80 && e.pageX < 770) {
+		palletObject.style.left = ( e.pageX ) + "px";
+	}
+}
+
+function ballMove () {
+	var computedStyle = window.getComputedStyle(ballObject);
+	var objectPosX = parseInt(computedStyle.left.substr(0,computedStyle.left.length-2));
+	var objectPosY = parseInt(computedStyle.top.substr(0,computedStyle.top.length-2));
+
+	if (objectPosX<100+5) {ballDirectionX = 1}
+	if (objectPosX>900-15) {ballDirectionX = -1}
+	if (objectPosY<50+5) {ballDirectionY = 1}
+	//if (objectPosY>500) {ballDirectionY = -1}
+	
+	ballObject.style.left  = (objectPosX+ballSpeed*ballDirectionX + (Math.random() * 4) )+"px";
+	ballObject.style.top  = (objectPosY+ballSpeed*ballDirectionY + Math.random()*3 )+"px";
+	checkPalletCollision();
+	ballObject.style.transform	= "rotate(" + objectPosX + "deg)";
+}
+
+function checkPalletCollision () {
+	//wymiary paletki + jej wspolrzedne
+	//150px 20px 
+	var palletComputedStyle = window.getComputedStyle(palletObject);
+	
+	// wspolrzedne lewego gornego naroznika PALETKI
+	var palletLeftTopCornerX = parseInt(palletComputedStyle.left.substr(0,palletComputedStyle.left.length-2));
+	var palletLeftTopCornerY = parseInt(palletComputedStyle.top.substr(0,palletComputedStyle.top.length-2));
+	
+	// wspolrzedna prawego gornego X PALETKI
+	var palletRightTopCornerX = palletLeftTopCornerX+150;
+	var palletRightBottomCornerY = palletLeftTopCornerY+50;
+	
+	//wymiary kulki + jej wspolrzedne
+	var ballComputedStyle = window.getComputedStyle(ballObject);
+	var ballLeftTopCornerX = parseInt(ballComputedStyle.left.substr(0,ballComputedStyle.left.length-2));
+	var ballLeftTopCornerY = parseInt(ballComputedStyle.top.substr(0,ballComputedStyle.top.length-2));	
+	
+	var ballRightTopCornerX = ballLeftTopCornerX+10;
+	var ballRightBottomCornerY = ballLeftTopCornerY+10;
+	
+	if (ballRightBottomCornerY	>	palletLeftTopCornerY && ballRightBottomCornerY < palletRightBottomCornerY) { // sprawdzenie pionowej pozycji piłki
+		if (	ballLeftTopCornerX		>	palletLeftTopCornerX
+				&& ballRightTopCornerX 		< 	palletRightTopCornerX
+				&& ballLeftTopCornerY		<  palletRightBottomCornerY ) {
+				
+				ballDirectionY = -1;
+
+				if ( ballLeftTopCornerX-palletLeftTopCornerX < 75) {
+					ballDirectionX = -1 ;
+				} else {
+					ballDirectionX = 1 ;
+				}
+			
+				
+				
+				
+			}
+	}
+				
+		if (ballRightBottomCornerY	> 550) {
+			negativePoints += 1;
+			document.getElementById("negativePoints").innerHTML = "Negative Points: " + parseInt(negativePoints/10);
+		}
+
+	// SPRAWDZANIE KOLIZJI Z CEGŁAMI
+	checkBricksCollision(ballLeftTopCornerX, ballLeftTopCornerY, ballRightTopCornerX,ballRightBottomCornerY);
+
+	//dolna granica dla kulki	
+	if (ballRightBottomCornerY > 700) {
+		ballDirectionY = -1;
+	}
+}
+
+function moveObject (object, key) {
+
+	var computedStyle = window.getComputedStyle(object);
+	var speed = 12;
+	if (key == 37) {
+		object.style.left=(computedStyle.left.substr(0,computedStyle.left.length-2)-speed)+"px";
+	}
+	if (key == 38) {
+		object.style.top=(computedStyle.top.substr(0,computedStyle.top.length-2)-speed)+"px";
+	}
+	if (key == 39) {	
+		object.style.left=(parseInt(computedStyle.left.substr(0,computedStyle.left.length-2))+speed)+"px";
+	}
+	if (key == 40) {
+		object.style.top=(parseInt(computedStyle.top.substr(0,computedStyle.length-2))+speed)+"px";
+	}
+}
+
+//bricks
+
+function brick (x1, y1, brickId) {
+
+	var operation_area = document.getElementById("operation_area");
+
+	var top_offset = 50; // przesunięcie obszaru roboczego
+	var left_offset = 100;
+	
+	// współrzędne cegły
+	this.px1 = x1 + left_offset;
+	this.py1 = y1 + top_offset;
+	// współrzędne przeciwległego punktu prostokąta cegły
+	this.px2 = this.px1 + brickSizeX + ( Math.floor((Math.random() * 40) ));
+	this.py2 = this.py1 + brickSizeY + ( Math.floor((Math.random() * 20) ));
+		
+	// create object to append
+	var brick = document.createElement("DIV");
+	var brick_shadow = document.createElement("DIV");
+	brick.className = "brick";
+	brick.id = "brickId_"+brickId;
+	this.id = "brickId_"+brickId;
+	brick.style.top = this.py1 + "px";
+	brick.style.left = this.px1 + "px";
+	brick.style.width = this.px2 - this.px1 + "px";
+	brick.style.height = this.py2 - this.py1 + "px";
+	operation_area.appendChild(brick);
+	
+	brick_shadow.className = "brick_shadow";
+	brick_shadow.id = "brick_shadow_Id_"+brickId;
+	this.id_shadow = "brick_shadow_Id_"+brickId;
+	brick_shadow.style.top = this.py1+1 + "px";
+	brick_shadow.style.left = this.px1+3 + "px";
+	brick_shadow.style.width = this.px2+1 - this.px1 + "px";
+	brick_shadow.style.height = this.py2+3 - this.py1 + "px";
+	operation_area.appendChild(brick_shadow);
+}
+
+function checkBricksCollision(ballX1, ballY1, ballX2, ballY2) {
+
+	for (var i = 0; i < bricksArray.length; i++) {
+
+		var brickX1 = bricksArray[i].px1-10;
+		var brickY1 = bricksArray[i].py1-10;
+		var brickX2 = bricksArray[i].px2;
+		var brickY2 = bricksArray[i].py1+30;
+		
+		if (ballX1 > brickX1 && ballX2 < brickX2) {
+			if (ballY2 > brickY1 && ballY1 < brickY2) {
+				ballDirectionY = -1 * ballDirectionY;
+						
+				document.getElementById("operation_area").removeChild(document.getElementById(bricksArray[i].id));
+				document.getElementById("operation_area").removeChild(document.getElementById(bricksArray[i].id_shadow));
+				bricksArray.splice(i,1);
+				
+				document.getElementById("bricksPoints").innerHTML = "Brick Points: " + (++bricksPoints);
+			}
+		}
+	}
+}
+
+function bricksFactory () {
+	var index = 0;
+	for (var y = 10; y < ( Math.floor((Math.random() * 250) ) + 140 ) ; y+=30 ) {
+		for (var x = 10; x < 800; x+=40 ) {
+				bricksArray.push(new brick(x, y, bricksArray.length ));
+		}
+	}
+}
+
+function insertRandomBrick () {
+
+	var x = Math.floor((Math.random() * 700) ) + 20;
+	var y = Math.floor((Math.random() * 250) ) + 20;
+
+	bricksArray.push(new brick(x, y, bricksArray.length+1 ));
+
+}
+
+
+</script>
